@@ -6,10 +6,19 @@ import {
   SPREADSHEET_ID
 } from '$env/static/private';
 
+/**
+ * @param {string} str
+ * @returns {string}
+ */
+const clean = (str) => {
+  if (!str) return '';
+  return str.replace(/^"(.*)"$/, '$1').replace(/\\n/g, '\n').trim();
+};
+
 const auth = new google.auth.GoogleAuth({
   credentials: {
-    client_email: GOOGLE_CLIENT_EMAIL,
-    private_key: GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+    client_email: clean(GOOGLE_CLIENT_EMAIL),
+    private_key: clean(GOOGLE_PRIVATE_KEY),
   },
   scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
 });
@@ -18,9 +27,10 @@ const sheets = google.sheets({ version: 'v4', auth });
 
 export async function GET() {
   try {
+    const spreadsheetId = clean(SPREADSHEET_ID);
     // Get spreadsheet metadata to find the actual sheet names
     const metaResponse = await sheets.spreadsheets.get({
-      spreadsheetId: SPREADSHEET_ID,
+      spreadsheetId,
     });
     const sheetsList = metaResponse.data.sheets;
 
@@ -36,7 +46,7 @@ export async function GET() {
     }
 
     const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
+      spreadsheetId,
       range: sheetName, // Fetch all data from the sheet
     });
 
@@ -78,6 +88,9 @@ export async function GET() {
     return json(businesses);
   } catch (error) {
     console.error('Error fetching businesses:', error);
-    return json({ error: 'Failed to fetch businesses' }, { status: 500 });
+    return json({ 
+      error: 'Failed to fetch businesses', 
+      details: error instanceof Error ? error.message : String(error) 
+    }, { status: 500 });
   }
 }
